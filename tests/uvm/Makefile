@@ -57,7 +57,8 @@ FILE_LIST = ./coralnpu_dv.f
 DSIM_WORK = dsim_work
 DSIM_IMAGE = image
 UVM_TESTNAME ?= coralnpu_base_test
-TEST_ELF ?= $(BIN_DIR)/coralnpu_v2_program.elf
+# TEST_ELF ?= $(BIN_DIR)/coralnpu_v2_program.elf
+TEST_ELF ?= $(BIN_DIR)/riscv_rand_instr_test_0.elf
 UVM_VERBOSITY ?= UVM_HIGH
 TEST_TIMEOUT_NS ?= 100000
 PLUSARGS = +UVM_TESTNAME=$(UVM_TESTNAME) \
