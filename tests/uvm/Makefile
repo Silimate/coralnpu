@@ -28,7 +28,7 @@ GENERATED_RTL_NAME = RvvCoreMiniVerificationAxi.sv
 GENERATED_RTL_SRC = $(BAZEL_BIN_DIR)/hdl/chisel/src/coralnpu/$(GENERATED_RTL_NAME)
 
 # User Configuration
-VCS = dsim
+DSIM = dsim
 CXX = clang++
 
 # UVM DV Directories
@@ -50,7 +50,7 @@ RUN_OPTS_FILE = $(MEM_FILE_DIR)/elf_run_opts.f
 MPACT_BAZEL_BIN_DIR = $(CORALNPU_MPACT)/bazel-bin/sim/cosim
 MPACT_COSIM_LIB_NAME = coralnpu_cosim_lib_static
 
-# File List for VCS -f option
+# File List for DSIM -f option
 FILE_LIST = ./coralnpu_dv.f
 
 # Simulation Settings
@@ -74,7 +74,7 @@ WAVE_FILE = $(WAVE_DIR)/$(UVM_TESTNAME).vcd
 # Note: UVM_HOME and DSIM_HOME are set in the Docker environment
 # UVM_HOME=/root/AltairDSim/2025/uvm/1.2/
 # DSIM_HOME=/root/AltairDSim/2025
-VCS_COMPILE_OPTS = \
+DSIM_COMPILE_OPTS = \
 	-sv \
 	+define+UVM_NO_DEPRECATED \
 	-incdir ${UVM_HOME}/src \
@@ -84,14 +84,14 @@ VCS_COMPILE_OPTS = \
 	-noopt \
 	+acc+b -waves $(SIM_DIR)/waves/waves.vcd
 
-VCS_RUN_OPTS = \
+DSIM_RUN_OPTS = \
 	$(PLUSARGS) \
 	-f $(RUN_OPTS_FILE) \
 	-sv_lib ${UVM_HOME}/src/dpi/libuvm_dpi.so
 
 # Add define to COMPILE options for waveform dumping
 ifeq ($(DUMP_WAVES),1)
-VCS_COMPILE_OPTS += +define+DUMP_WAVES
+DSIM_COMPILE_OPTS += +define+DUMP_WAVES
 endif
 
 # Targets
@@ -130,7 +130,7 @@ rtl:
 # Compile the design (removed build_mpact_lib dependency since CORALNPU_MPACT is not set)
 compile: $(FILE_LIST) dirs rtl
 	@echo "--- Compiling with dsim ---"
-	$(VCS) $(VCS_COMPILE_OPTS) -l $(LOG_DIR)/compile.log -work $(DSIM_WORK) -genimage $(DSIM_IMAGE) -f $(FILE_LIST) $(GENERATED_RTL_SRC)
+	$(DSIM) $(DSIM_COMPILE_OPTS) -l $(LOG_DIR)/compile.log -work $(DSIM_WORK) -genimage $(DSIM_IMAGE) -f $(FILE_LIST) $(GENERATED_RTL_SRC)
 	@echo "--- Compilation Finished ---"
 
 # Run the simulation
@@ -145,7 +145,7 @@ run: gen_mem_files
 ifeq ($(DUMP_WAVES),1)
 	@echo "Wave File: $(WAVE_FILE)"
 endif
-	$(VCS) -work $(DSIM_WORK) -image $(DSIM_IMAGE) $(VCS_RUN_OPTS) -l $(LOG_DIR)/$(UVM_TESTNAME).log
+	$(DSIM) -work $(DSIM_WORK) -image $(DSIM_IMAGE) $(DSIM_RUN_OPTS) -l $(LOG_DIR)/$(UVM_TESTNAME).log
 	@echo "--- Simulation Finished ---"
 
 # Clean up simulation files
