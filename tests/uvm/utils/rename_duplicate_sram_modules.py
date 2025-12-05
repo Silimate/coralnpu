@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 """
 Rename duplicate SRAM wrapper module definitions from generated Verilog.
-
 Chisel sometimes generates both SRAM_xxx and Sram_xxx modules.
 This script renames the uppercase SRAM_xxx wrapper versions to avoid linker conflicts.
 """
@@ -22,11 +21,9 @@ def rename_duplicate_sram_modules(input_file, output_file):
         'SRAM_2048x128': 'SRAM_2048x128_wrapper',
         # Note: SRAM_1 is NOT included because it's not a duplicate
     }
-    
-    original_len = len(content)
+
     definitions_renamed = 0
     instances_renamed = 0
-    ports_fixed = 0
     
     for old_name, new_name in module_replacements.items():
         # Step 1: Rename the module definition (e.g., "module SRAM_512x128" -> "module SRAM_512x128_wrapper")
@@ -55,14 +52,10 @@ def rename_duplicate_sram_modules(input_file, output_file):
     # Write output
     with open(output_file, 'w') as f:
         f.write(content)
-    
-    new_len = len(content)
-    bytes_changed = abs(original_len - new_len)
+
     
     print(f"\nRenamed {definitions_renamed} module definition(s)")
     print(f"Renamed {instances_renamed} module instantiation(s)")
-    print(f"Fixed {ports_fixed} port connection(s) (removed 'io_' prefix)")
-    print(f"File size changed by {bytes_changed:,} bytes")
     print(f"Output written to: {output_file}")
 
 if __name__ == '__main__':
