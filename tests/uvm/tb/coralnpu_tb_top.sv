@@ -29,8 +29,8 @@ module coralnpu_tb_top;
   import coralnpu_axi_master_agent_pkg::*;
   import coralnpu_axi_slave_agent_pkg::*;
   import coralnpu_irq_agent_pkg::*;
-  import coralnpu_rvvi_agent_pkg::*;
-  import coralnpu_cosim_checker_pkg::*;
+  // import coralnpu_rvvi_agent_pkg::*;  // DISABLED: Depends on co-simulation infrastructure
+  // import coralnpu_cosim_checker_pkg::*;  // DISABLED: MPACT co-simulation not available
 
   //--------------------------------------------------------------------------
   // Parameters
@@ -215,20 +215,6 @@ module coralnpu_tb_top;
   end
 
   //--------------------------------------------------------------------------
-  // Waveform Dumping
-  //--------------------------------------------------------------------------
-  `ifdef DUMP_WAVES
-  initial begin
-    $fsdbDumpfile($sformatf("./sim_work/waves/%s.fsdb", "coralnpu_base_test"));
-    $fsdbDumpvars(0, coralnpu_tb_top, "+mda");
-    `uvm_info("TB_TOP",
-              $sformatf("FSDB Waveform Dumping Enabled to: %s",
-              $sformatf("./sim_work/waves/%s.fsdb", "coralnpu_base_test")),
-              UVM_LOW);
-  end
-  `endif
-
-  //--------------------------------------------------------------------------
   // ELF Memory Loading and `tohost` Monitor
   //--------------------------------------------------------------------------
   initial begin
@@ -244,6 +230,7 @@ module coralnpu_tb_top;
                                    tohost_written_event);
 
     // Load memories at time 0
+    #5;
     if ($value$plusargs("ITCM_MEM_FILE=%s", itcm_mem_file)) begin
       `uvm_info("TB_TOP", $sformatf("Loading ITCM from %s", itcm_mem_file), UVM_LOW)
       $readmemh(itcm_mem_file, coralnpu_tb_top.u_dut.itcm.sram.sramModules_0.mem);
@@ -309,12 +296,14 @@ module coralnpu_tb_top;
     uvm_config_db#(virtual coralnpu_irq_if.DUT_IRQ_PORT)::set(null,
         "*", "irq_vif", irq_if);
 
-    uvm_config_db#(virtual rvviTrace #(.ILEN(32), .XLEN(32), .FLEN(32),
-        .VLEN(128), .NHART(1), .RETIRE(8)))::set(null,
-        "*.env.m_cosim_checker*", "rvvi_vif", rvvi_vif);
-    uvm_config_db#(virtual rvviTrace #(.ILEN(32), .XLEN(32), .FLEN(32),
-        .VLEN(128), .NHART(1), .RETIRE(8)))::set(null,
-        "*.env.m_rvvi_agent*", "rvvi_vif", rvvi_vif);
+    // DISABLED: MPACT co-simulation not available
+    // uvm_config_db#(virtual rvviTrace #(.ILEN(32), .XLEN(32), .FLEN(32),
+    //     .VLEN(128), .NHART(1), .RETIRE(8)))::set(null,
+    //     "*.env.m_cosim_checker*", "rvvi_vif", rvvi_vif);
+    // DISABLED: RVVI agent depends on co-simulation infrastructure
+    // uvm_config_db#(virtual rvviTrace #(.ILEN(32), .XLEN(32), .FLEN(32),
+    //     .VLEN(128), .NHART(1), .RETIRE(8)))::set(null,
+    //     "*.env.m_rvvi_agent*", "rvvi_vif", rvvi_vif);
 
     uvm_config_db#(time)::set(null, "*", "clk_period", CLK_PERIOD);
 
