@@ -12,90 +12,87 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Makefile for CoralNPU UVM Testbench (Integrates with MPACT-Sim)
+# Makefile for CoralNPU UVM Testbench
+
+# Workspace root (two levels up from tests/uvm/)
+WORKSPACE_ROOT := $(shell cd ../.. && pwd)
 
 # Check if CORALNPU_MPACT is set. If not, exit with an error.
-ifndef CORALNPU_MPACT
-    $(error CORALNPU_MPACT is not set. Please define it, e.g., export CORALNPU_MPACT=$(abspath ../../../coralnpu-mpact))
-endif
+CORALNPU_MPACT = $(shell cd ../../../coralnpu-mpact && pwd)
 
 # Generated RTL path
-BAZEL_BIN_DIR = $(shell bazel info bazel-bin)
+BAZEL_BIN_DIR = $(shell cd $(WORKSPACE_ROOT) && bazel info bazel-bin)
 GENERATED_RTL_NAME = RvvCoreMiniVerificationAxi.sv
 GENERATED_RTL_SRC = $(BAZEL_BIN_DIR)/hdl/chisel/src/coralnpu/$(GENERATED_RTL_NAME)
 
 # User Configuration
-VCS = vcs
+DSIM = dsim
 CXX = clang++
 
 # UVM DV Directories
-COMMON_DIR = ./common
-TB_DIR = ./tb
-ENV_DIR = ./env
-TESTS_DIR = ./tests
 BIN_DIR = ./bin
 UTILS_DIR = ./utils
 
 # Simulation Work Directory
 SIM_DIR = ./sim_work
 LOG_DIR = $(SIM_DIR)/logs
+
+# Waveform Dumping
+DUMP_WAVES ?= 0
 WAVE_DIR = $(SIM_DIR)/waves
+WAVE_FILE = $(WAVE_DIR)/$(UVM_TESTNAME).vcd
+
+# Memory files
 MEM_FILE_DIR = $(SIM_DIR)/mem_files
 RUN_OPTS_FILE = $(MEM_FILE_DIR)/elf_run_opts.f
 
 # MPACT-Sim Integration Paths
 MPACT_BAZEL_BIN_DIR = $(CORALNPU_MPACT)/bazel-bin/sim/cosim
 MPACT_COSIM_LIB_NAME = coralnpu_cosim_lib_static
+MPACT_COSIM_LIB_FILE = $(MPACT_BAZEL_BIN_DIR)/libcoralnpu_cosim_lib_static.a
 
-# File List for VCS -f option
+# File List for DSIM -f option
 FILE_LIST = ./coralnpu_dv.f
 
 # Simulation Settings
-SIM_EXEC = $(SIM_DIR)/simv
+DSIM_WORK = dsim_work
+DSIM_IMAGE = image
 UVM_TESTNAME ?= coralnpu_base_test
-TEST_ELF ?= $(BIN_DIR)/program.elf
-UVM_VERBOSITY ?= UVM_MEDIUM
+TEST_ELF ?= $(BIN_DIR)/coralnpu_v2_program.elf
+LOG_FILENAME ?= test
+UVM_VERBOSITY ?= UVM_HIGH
 TEST_TIMEOUT_NS ?= 100000
 PLUSARGS = +UVM_TESTNAME=$(UVM_TESTNAME) \
            +UVM_VERBOSITY=$(UVM_VERBOSITY) +TEST_TIMEOUT=$(TEST_TIMEOUT_NS) \
            +TEST_ELF=$(TEST_ELF)
 
-# Waveform Dumping
-DUMP_WAVES = 1
-WAVE_FILE = $(WAVE_DIR)/$(UVM_TESTNAME).fsdb
-
-# VCS Options
-VCS_COMPILE_OPTS = \
-	-full64 \
-	-sverilog \
+# DSim Compilation Options
+# Note: UVM_HOME and DSIM_HOME are set in the Docker environment
+# UVM_HOME=/root/AltairDSim/2025/uvm/1.2/
+# DSIM_HOME=/root/AltairDSim/2025
+DSIM_COMPILE_OPTS = \
+	-sv \
 	+define+UVM_NO_DEPRECATED \
-	-ntb_opts uvm-1.2 \
-	-debug_access+all \
-	-kdb \
-	-timescale=1ns/1ps \
-	-o $(SIM_EXEC)
-
-# Add C++ compiler/linker options for MPACT-Sim
-VCS_COMPILE_OPTS += \
-    -cpp $(CXX) \
-    -cppflags "-std=c++17" \
-    -CFLAGS "-I$(CORALNPU_MPACT)" \
-    -L$(MPACT_BAZEL_BIN_DIR) \
-    -l$(MPACT_COSIM_LIB_NAME)
-
-VCS_RUN_OPTS = \
+	-incdir ${UVM_HOME}/src \
+	-timescale 1ns/1ps \
+	-sv_lib ${UVM_HOME}/src/dpi/libuvm_dpi.so \
+	-uvm default \
+	-noopt \
+	+acc+b -waves $(WAVE_FILE) \
+	-c-opts "-I$(CORALNPU_MPACT) -std=c++17" \
+  -ld-opts "-L$(MPACT_BAZEL_BIN_DIR) -l$(MPACT_COSIM_LIB_NAME)"
+	
+DSIM_RUN_OPTS = \
 	$(PLUSARGS) \
-	-f $(RUN_OPTS_FILE)
+	-f $(RUN_OPTS_FILE) \
+	-sv_lib ${UVM_HOME}/src/dpi/libuvm_dpi.so
 
 # Add define to COMPILE options for waveform dumping
 ifeq ($(DUMP_WAVES),1)
-VCS_COMPILE_OPTS += +define+DUMP_WAVES
-VCS_RUN_OPTS += +fsdb+all \
-                +fsdbfile+$(WAVE_FILE)
+DSIM_RUN_OPTS += -waves $(WAVE_FILE)
 endif
 
 # Targets
-
 .PHONY: all compile run clean dirs help build_mpact_lib gen_mem_files rtl
 
 # Default target, builds and then runs.
@@ -119,15 +116,23 @@ gen_mem_files: dirs
 # Generate the DUT RTL from Chisel source
 rtl:
 	@echo "--- Generating DUT RTL from Chisel ---"
+	cd $(WORKSPACE_ROOT)
 	bazel build //hdl/chisel/src/coralnpu:rvv_core_mini_verification_axi_cc_library_emit_verilog
+	@echo "--- Fixing Chisel-generated code for DSim compatibility ---"
+	sed -i 's/:\/\/\(.*\)/: \/\/\1/g' $(GENERATED_RTL_SRC)
+	@echo "--- Renaming duplicate SRAM module definitions ---"
+	python3 $(UTILS_DIR)/rename_duplicate_sram_modules.py $(GENERATED_RTL_SRC) $(GENERATED_RTL_SRC).tmp
+	rm -f $(GENERATED_RTL_SRC)
+	mv $(GENERATED_RTL_SRC).tmp $(GENERATED_RTL_SRC)
 
-# Compile the design
-$(SIM_EXEC): $(FILE_LIST) dirs build_mpact_lib rtl
-	@echo "--- Compiling with VCS ---"
-	$(VCS) $(VCS_COMPILE_OPTS) -l $(LOG_DIR)/compile.log -f $(FILE_LIST) $(GENERATED_RTL_SRC)
+# Compile the design (removed build_mpact_lib dependency since CORALNPU_MPACT is not set)
+compile: $(FILE_LIST) dirs rtl build_mpact_lib
+	@echo "--- Compiling with dsim ---"
+	$(DSIM) $(DSIM_COMPILE_OPTS) -l $(LOG_DIR)/compile.log -work $(DSIM_WORK) -f $(FILE_LIST) $(GENERATED_RTL_SRC)
+	# Manual linking of the MPACT-Sim library
+	@echo "--- Linking Design and Co-sim libraries ---"
+	g++ -shared -Bsymbolic -o $(DSIM_WORK)/$(DSIM_IMAGE).so $(DSIM_WORK)/obj/*o -Wl,--whole-archive $(MPACT_COSIM_LIB_FILE) -Wl,--no-whole-archive -lstdc++
 	@echo "--- Compilation Finished ---"
-
-compile: $(SIM_EXEC)
 
 # Run the simulation
 run: gen_mem_files
@@ -137,20 +142,21 @@ run: gen_mem_files
 	@echo "Verbosity: $(UVM_VERBOSITY)"
 	@echo "Timeout:   $(TEST_TIMEOUT_NS) ns"
 	@echo "Plusargs:  $(PLUSARGS)"
-	@echo "Log File:  $(LOG_DIR)/$(UVM_TESTNAME).log"
+	@echo "Log File:  $(LOG_DIR)/$(LOG_FILENAME).log"
 ifeq ($(DUMP_WAVES),1)
 	@echo "Wave File: $(WAVE_FILE)"
 endif
-	./$(SIM_EXEC) $(VCS_RUN_OPTS) -l $(LOG_DIR)/$(UVM_TESTNAME).log
+	$(DSIM) -work $(DSIM_WORK) -image $(DSIM_IMAGE) $(DSIM_RUN_OPTS) -l $(LOG_DIR)/$(LOG_FILENAME).log
 	@echo "--- Simulation Finished ---"
 
 # Clean up simulation files
 clean:
 	@echo "--- Cleaning Simulation Files ---"
-	rm -rf $(SIM_DIR) simv* csrc* *.log* *.key *.vpd *.fsdb ucli.key DVEfiles/ verdiLog/ novas.*
+	rm -rf $(SIM_DIR) $(DSIM_WORK) $(GENERATED_RTL_SRC).tmp simv* csrc* *.log* *.key *.vpd *.fsdb ucli.key DVEfiles/ verdiLog/ novas.*
+	cd $(WORKSPACE_ROOT)
 	bazel clean --expunge
-	@echo "--- Cleaning MPACT-Sim Bazel cache ---"
-	cd $(CORALNPU_MPACT) && bazel clean --expunge
+	# @echo "--- Cleaning MPACT-Sim Bazel cache ---"
+	# cd $(CORALNPU_MPACT) && bazel clean --expunge
 
 # Help
 help:

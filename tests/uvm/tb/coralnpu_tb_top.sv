@@ -215,20 +215,6 @@ module coralnpu_tb_top;
   end
 
   //--------------------------------------------------------------------------
-  // Waveform Dumping
-  //--------------------------------------------------------------------------
-  `ifdef DUMP_WAVES
-  initial begin
-    $fsdbDumpfile($sformatf("./sim_work/waves/%s.fsdb", "coralnpu_base_test"));
-    $fsdbDumpvars(0, coralnpu_tb_top, "+mda");
-    `uvm_info("TB_TOP",
-              $sformatf("FSDB Waveform Dumping Enabled to: %s",
-              $sformatf("./sim_work/waves/%s.fsdb", "coralnpu_base_test")),
-              UVM_LOW);
-  end
-  `endif
-
-  //--------------------------------------------------------------------------
   // ELF Memory Loading and `tohost` Monitor
   //--------------------------------------------------------------------------
   initial begin
@@ -244,6 +230,7 @@ module coralnpu_tb_top;
                                    tohost_written_event);
 
     // Load memories at time 0
+    #5;
     if ($value$plusargs("ITCM_MEM_FILE=%s", itcm_mem_file)) begin
       `uvm_info("TB_TOP", $sformatf("Loading ITCM from %s", itcm_mem_file), UVM_LOW)
       $readmemh(itcm_mem_file, coralnpu_tb_top.u_dut.itcm.sram.sramModules_0.mem);
