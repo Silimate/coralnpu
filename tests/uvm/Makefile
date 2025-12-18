@@ -15,13 +15,12 @@
 # Makefile for CoralNPU UVM Testbench
 
 # Workspace root (two levels up from tests/uvm/)
-WORKSPACE_ROOT := $(shell cd ../.. && pwd)
 
 # Check if CORALNPU_MPACT is set. If not, exit with an error.
-CORALNPU_MPACT = $(shell cd ../../../coralnpu-mpact && pwd)
+# CORALNPU_MPACT = $(shell cd ../../../coralnpu-mpact && pwd)
 
 # Generated RTL path
-BAZEL_BIN_DIR = $(shell cd $(WORKSPACE_ROOT) && bazel info bazel-bin)
+BAZEL_BIN_DIR = $(shell bazel info bazel-bin)
 GENERATED_RTL_NAME = RvvCoreMiniVerificationAxi.sv
 GENERATED_RTL_SRC = $(BAZEL_BIN_DIR)/hdl/chisel/src/coralnpu/$(GENERATED_RTL_NAME)
 
@@ -116,7 +115,6 @@ gen_mem_files: dirs
 # Generate the DUT RTL from Chisel source
 rtl:
 	@echo "--- Generating DUT RTL from Chisel ---"
-	cd $(WORKSPACE_ROOT)
 	bazel build //hdl/chisel/src/coralnpu:rvv_core_mini_verification_axi_cc_library_emit_verilog
 	@echo "--- Fixing Chisel-generated code for DSim compatibility ---"
 	sed -i 's/:\/\/\(.*\)/: \/\/\1/g' $(GENERATED_RTL_SRC)
@@ -153,7 +151,6 @@ endif
 clean:
 	@echo "--- Cleaning Simulation Files ---"
 	rm -rf $(SIM_DIR) $(DSIM_WORK) $(GENERATED_RTL_SRC).tmp simv* csrc* *.log* *.key *.vpd *.fsdb ucli.key DVEfiles/ verdiLog/ novas.*
-	cd $(WORKSPACE_ROOT)
 	bazel clean --expunge
 	# @echo "--- Cleaning MPACT-Sim Bazel cache ---"
 	# cd $(CORALNPU_MPACT) && bazel clean --expunge

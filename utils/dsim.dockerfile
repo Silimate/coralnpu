@@ -15,8 +15,8 @@ RUN apt-get update -y
 RUN apt-get install -y build-essential ca-certificates libsqlite3-dev
 
 # Copy the dsim binary
-COPY AltairDSim2025.0.1_linux64.bin /root/
-COPY dsim-license.json /root/
+COPY utils/AltairDSim2025.0.1_linux64.bin /root/
+COPY utils/dsim-license.json /root/
 
 # Make the binary executable
 RUN chmod +x /root/AltairDSim2025.0.1_linux64.bin
@@ -46,11 +46,6 @@ ENV LD_LIBRARY_PATH=${DSIM_HOME}/lib:${LLVM_HOME}/lib
 
 # Symlink libuvm_dpi.so to dsim lib path
 RUN ln -s ${UVM_HOME}/src/dpi/libuvm_dpi.so ${DSIM_LIB_PATH}/libuvm_dpi.so
-
-# # Replace dsim binary
-# COPY dsim /root/AltairDSim/2025/bin/dsim
-# RUN chmod +x /root/AltairDSim/2025/bin/dsim
-COPY dsim-license.json /root/dsim-license.json
 
 # Command to run when container starts
 CMD ["dsim"]
