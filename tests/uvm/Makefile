@@ -12,12 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Makefile for CoralNPU UVM Testbench
-
-# Workspace root (two levels up from tests/uvm/)
+# Makefile for CoralNPU UVM Testbench (Integrates with MPACT-Sim)
 
 # Check if CORALNPU_MPACT is set. If not, exit with an error.
-# CORALNPU_MPACT = $(shell cd ../../../coralnpu-mpact && pwd)
+ifndef CORALNPU_MPACT
+    $(error CORALNPU_MPACT is not set. Please define it, e.g., export CORALNPU_MPACT=$(abspath ../../../coralnpu-mpact))
+endif
 
 # Generated RTL path
 BAZEL_BIN_DIR = $(shell bazel info bazel-bin)
@@ -29,6 +29,10 @@ DSIM = dsim
 CXX = clang++
 
 # UVM DV Directories
+COMMON_DIR = ./common
+TB_DIR = ./tb
+ENV_DIR = ./env
+TESTS_DIR = ./tests
 BIN_DIR = ./bin
 UTILS_DIR = ./utils
 
@@ -48,9 +52,9 @@ RUN_OPTS_FILE = $(MEM_FILE_DIR)/elf_run_opts.f
 # MPACT-Sim Integration Paths
 MPACT_BAZEL_BIN_DIR = $(CORALNPU_MPACT)/bazel-bin/sim/cosim
 MPACT_COSIM_LIB_NAME = coralnpu_cosim_lib_static
-MPACT_COSIM_LIB_FILE = $(MPACT_BAZEL_BIN_DIR)/libcoralnpu_cosim_lib_static.a
+MPACT_COSIM_LIB_FILE = $(MPACT_BAZEL_BIN_DIR)/lib$(MPACT_COSIM_LIB_NAME).a
 
-# File List for DSIM -f option
+# File List for -f option
 FILE_LIST = ./coralnpu_dv.f
 
 # Simulation Settings
@@ -152,8 +156,8 @@ clean:
 	@echo "--- Cleaning Simulation Files ---"
 	rm -rf $(SIM_DIR) $(DSIM_WORK) $(GENERATED_RTL_SRC).tmp simv* csrc* *.log* *.key *.vpd *.fsdb ucli.key DVEfiles/ verdiLog/ novas.*
 	bazel clean --expunge
-	# @echo "--- Cleaning MPACT-Sim Bazel cache ---"
-	# cd $(CORALNPU_MPACT) && bazel clean --expunge
+	@echo "--- Cleaning MPACT-Sim Bazel cache ---"
+	cd $(CORALNPU_MPACT) && bazel clean --expunge
 
 # Help
 help:

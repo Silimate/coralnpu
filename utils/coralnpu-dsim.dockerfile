@@ -6,13 +6,53 @@
 # Run command:
 # docker run -it coralnpu /bin/bash
 
-FROM dsim
+FROM debian:bookworm AS base
 
 ENV TZ=UTC
 ARG _UID=1000
 ARG _GID=1000
 ARG _USERNAME=builder
 ENV HOME=/home/${_USERNAME}
+
+ENV DEBIAN_FRONTEND=noninteractive
+# Create a directory for dsim
+WORKDIR /root
+
+# Copy the dsim binary
+COPY utils/AltairDSim2025.0.1_linux64.bin /root/
+COPY utils/dsim-license.json /root/
+
+# Make the binary executable
+RUN chmod +x /root/AltairDSim2025.0.1_linux64.bin
+
+# Install dsim
+RUN /root/AltairDSim2025.0.1_linux64.bin -i silent -DACCEPT_EULA=YES
+
+# Remove dsim installer
+RUN rm /root/AltairDSim2025.0.1_linux64.bin
+
+# Make /root directory traversable and dsim installation accessible to all users
+RUN chmod a+rx /root && \
+    chmod -R a+rX /root/AltairDSim && \
+    chmod a+r /root/dsim-license.json
+
+# Setup dsim environment
+ENV DSIM=dsim
+ENV DSIM_HOME=/root/AltairDSim/2025
+ENV DSIM_LICENSE=/root/dsim-license.json
+ENV DSIM_LIB_PATH=${DSIM_HOME}/lib
+ENV UVM_HOME=${DSIM_HOME}/uvm/1.2/
+ENV STD_LIBS=${DSIM_HOME}/std_pkgs/lib
+ENV RADFLEX_PATH=${DSIM_HOME}/radflex
+ENV LLVM_HOME=${DSIM_HOME}/llvm_small
+ENV PATH=${LLVM_HOME}/bin:${DSIM_HOME}/bin:$PATH
+ENV LD_LIBRARY_PATH=${DSIM_HOME}/lib:${LLVM_HOME}/lib
+
+# Set CORALNPU_MPACT environment variable
+ENV CORALNPU_MPACT=../../coralnpu-mpact
+
+# Symlink libuvm_dpi.so to dsim lib path
+RUN ln -s ${UVM_HOME}/src/dpi/libuvm_dpi.so ${DSIM_LIB_PATH}/libuvm_dpi.so
 
 RUN ln -snf "/usr/share/zoneinfo/${TZ}" /etc/localtime && \
     echo "${TZ}" > /etc/timezone && \
@@ -32,6 +72,7 @@ RUN ln -snf "/usr/share/zoneinfo/${TZ}" /etc/localtime && \
         git \
         gnupg \
         libmpfr-dev \
+        libsqlite3-dev \
         lsb-release \
         python-is-python3 \
         python3 \
