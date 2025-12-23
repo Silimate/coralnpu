@@ -169,10 +169,6 @@ ifeq ($(SIMTOOL),dsim)
 	@echo "--- Fixing Chisel-generated code for DSim compatibility ---"
 	sed -i \
 		-e 's/:\/\/\(.*\)/: \/\/\1/g' \
-		-e 's/^module\s\+SRAM_512x128\b/module SRAM_512x128_wrapper/' \
-		-e 's/^module\s\+SRAM_2048x128\b/module SRAM_2048x128_wrapper/' \
-		-e 's/\(\s\+\)SRAM_512x128\(\s\+\w\+\s*(\)/\1SRAM_512x128_wrapper\2/g' \
-		-e 's/\(\s\+\)SRAM_2048x128\(\s\+\w\+\s*(\)/\1SRAM_2048x128_wrapper\2/g' \
 		$(GENERATED_RTL_SRC)
 endif
 
